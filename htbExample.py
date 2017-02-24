@@ -7,56 +7,41 @@ Copyright Dr. Greg M. Bernstein 2014
 Released under the MIT license
 """
 import simpy
+import htb
 
-import matplotlib
-matplotlib.use('Qt5Agg')
-import matplotlib.pyplot as plt
 
-from SimComponents import PacketGenerator, PacketSink
-from htb import ShaperTokenBucket
+def print_sink_stats(name, sink):
+    print("[%s: %d bytes in %0.1f seconds (%d Bps)" %
+          (name, sink.bytes_recv, sink.last_arrival,
+           sink.bytes_recv/sink.last_arrival))
+
 
 if __name__ == '__main__':
-    def const_arrival():
-        return 0.1
-
     def const_size():
         return 100.0
+
     env = simpy.Environment()
-    pg = PacketGenerator(env, "SJSU", const_arrival, const_size, finish=20)
-    pg2 = PacketGenerator(env, "SJSU", const_arrival, const_size, finish=20)
-    pg3 = PacketGenerator(env, "SJSU", const_arrival, const_size, finish=20)
-    ps = PacketSink(env, rec_arrivals=True, absolute_arrivals=True)
-    ps2 = PacketSink(env, rec_arrivals=True, absolute_arrivals=True)
-    ps3 = PacketSink(env, rec_arrivals=True, absolute_arrivals=True)
 
-    root = ShaperTokenBucket(env, rate=800, ceil=800)
-    shaper1 = ShaperTokenBucket(env, rate=300, ceil=800, parentBucket=root,
-                                name='S1')
-    shaper2 = ShaperTokenBucket(env, rate=500, ceil=800, parentBucket=root,
-                                name='S2')
-    pg.out = ps
+    pg = htb.PacketGenerator("Gen", const_size)
+    ps1 = htb.PacketSink(env)
+    ps2 = htb.PacketSink(env)
 
-    pg2.out = shaper1
-    shaper1.out = ps2
+    root = htb.TokenBucketNode('Root', rate=800, ceil=800)
+    shaper1 = htb.ShaperTokenBucket(env, 'S1', rate=300, ceil=800, parent=root,
+                                    debug=False)
+    shaper2 = htb.ShaperTokenBucket(env, 'S2', rate=200, ceil=800, parent=root,
+                                    debug=False)
 
-    pg3.out = shaper2
-    shaper2.out = ps3
+    shaper1.inp = pg
+    shaper1.outp = ps1
+    shaper2.inp = pg
+    shaper2.outp = ps2
 
-    env.run(until=10000)
-    #print(ps.arrivals)
-    print("[Shaper#1: %d bytes in %0.1f seconds (%0.1fbps)" %
-          (ps2.bytes_rec, ps2.last_arrival, ps2.bytes_rec/ps2.last_arrival))
-    print("[Shaper#2: %d bytes in %0.1f seconds (%0.1fbps)" %
-          (ps3.bytes_rec, ps3.last_arrival, ps3.bytes_rec/ps3.last_arrival))
+    rate_limiter = htb.RateLimiter(env)
+    rate_limiter.add_shaper(shaper1)
+    rate_limiter.add_shaper(shaper2)
 
-    #fig, axis = plt.subplots()
-    #axis.vlines(ps.arrivals, 0.0, 1.0,colors="g", linewidth=2.0, label='input stream')
-    #axis.vlines(ps2.arrivals, 0.0, 0.7, colors="r", linewidth=2.0, label='output stream')
-    #axis.set_title("Arrival times")
-    #axis.set_xlabel("time")
-    #axis.set_ylim([0, 1.5])
-    #axis.set_xlim([0, max(ps2.arrivals) + 10])
-    #axis.legend()
-    #axis.set_ylabel("normalized frequency of occurrence")
-    #fig.savefig("ArrivalHistogram.png")
-    #plt.show()
+    env.run(until=1000)
+
+    print_sink_stats("S1", ps1)
+    print_sink_stats("S2", ps2)

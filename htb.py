@@ -125,18 +125,13 @@ class ShaperTokenBucket(TokenBucketNode):
         self.msg = None
 
         # Statistics
-        self.packets_rec = 0
         self.packets_sent = 0
+        self.bytes_sent = 0
 
         self.name = name
         self.debug = debug
 
         self.action = env.process(self.run())
-
-        if self.debug:
-            print("rate:%0.1f, ceil:%d, tokens:%d, burst:%d, ctokens:%d, cburst:%d" %
-                  (self.rate, self.ceil, self.tokens, self.burst, self.ctokens,
-                   self.cburst))
 
     def run(self):
         while True:
@@ -147,40 +142,13 @@ class ShaperTokenBucket(TokenBucketNode):
         return self.inp.get()
 
     def send(self):
-        if self.debug:
-            oldt = self.tokens
-            oldct = self.ctokens
-            oldstate = self.state
-            oldpt = self.parent.tokens
-            oldpct = self.parent.ctokens
-            oldpstate = self.parent.state
-
-        if self.can_send() and self.parent.cannot_send():
-            print("%0.1f: %s can send but parent cannot" %
-                  (self.env.now, self.name))
-
-        if self.debug:
-            print("%s: %s" % (self.name, self.state))
-
         self.account(self.msg.size)
         self.outp.put(self.msg)
         self.packets_sent += 1
+        self.bytes_sent += self.msg.size
         self.msg = None
         self.msg_sent.succeed()
         self.msg_sent = self.env.event()
-
-        if self.debug:
-            # print("%0.1f: %s msg sent" % (self.env.now, self.name))
-#            print("%0.1f: %s msg sent (%d,%d:%d,%d)->(%d,%d:%d,%d)" %
-#                  (self.env.now, self.name,
-#                   oldt, oldct, oldpt, oldpct,
-#                   self.tokens, self.ctokens,
-#                   self.parent.tokens, self.parent.ctokens))
-
-            print("%0.1f: %s msg sent (%s:%s)->(%s,%s)" %
-                  (self.env.now, self.name,
-                   oldstate, oldpstate,
-                   self.state, self.parent.state))
 
     def borrow_and_send(self):
         if self.borrow_from_parent():
@@ -190,6 +158,9 @@ class ShaperTokenBucket(TokenBucketNode):
 
     def has_packets(self):
         return self.msg is not None
+
+    def stats(self):
+        return "%s: %d Bps" % (self.name, self.bytes_sent / self.env.now)
 
 
 class RateLimiter(object):
@@ -259,8 +230,9 @@ class PacketGenerator(object):
 
 
 class PacketSink(object):
-    def __init__(self, env):
+    def __init__(self, env, name):
         self.env = env
+        self.name = name
         self.packets_recv = 0
         self.bytes_recv = 0
         self.last_arrival = 0.0
@@ -269,3 +241,9 @@ class PacketSink(object):
         self.packets_recv += 1
         self.bytes_recv += pkt.size
         self.last_arrival = self.env.now
+
+    def rate(self):
+        return self.bytes_recv / self.last_arrival
+
+    def stats(self):
+        return "%s: %d Bps" % (self.name, self.rate())

@@ -1,4 +1,3 @@
-import simpy
 import random
 
 # TODO: Need to prioritise nodes that have not exceeded their rate above nodes
@@ -159,8 +158,11 @@ class ShaperTokenBucket(TokenBucketNode):
     def has_packets(self):
         return self.msg is not None
 
-    def stats(self):
-        return "%s: %d Bps" % (self.name, self.bytes_sent / self.env.now)
+    def stats(self, short=False):
+        if short:
+            return "%d" % (self.bytes_sent / self.env.now)
+        else:
+            return "%s: %d Bps" % (self.name, self.bytes_sent / self.env.now)
 
 
 class RateLimiter(object):
@@ -183,10 +185,16 @@ class RateLimiter(object):
         while True:
             self.replenish()
 
-            self.process_nodes_that_can_send()
-            self.process_nodes_that_can_borrow()
+            self.process_nodes_that_can_send1()
+            self.process_nodes_that_can_borrow1()
 
             yield self.env.timeout(self.replenish_interval)
+
+    def process_nodes_that_can_send1(self):
+        random.shuffle(self.shapers)
+        for shaper in self.shapers:
+            while shaper.has_packets() and shaper.can_send():
+                shaper.send()
 
     def process_nodes_that_can_send(self):
         while True:
@@ -198,6 +206,12 @@ class RateLimiter(object):
                     sent = True
             if not sent:
                 break
+
+    def process_nodes_that_can_borrow1(self):
+        random.shuffle(self.shapers)
+        for shaper in self.shapers:
+            while shaper.has_packets() and shaper.can_borrow():
+                shaper.borrow_and_send()
 
     def process_nodes_that_can_borrow(self):
         while True:

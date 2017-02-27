@@ -1,18 +1,5 @@
 import random
 
-# TODO: Need to prioritise nodes that have not exceeded their rate above nodes
-# that are > rate < ceil.
-#
-# Idea:
-#   - List of nodes in the CAN_SEND state at each level
-#   - List of nodes in the CAN_BORROW state at each level
-#   - List of nodes in the CANT_SEND state at each level
-#   - Iterate over the CAN_SEND nodes at lowest level & dequeue packets
-#   - Change node state based on tokens consumed
-#   - Only service CAN_BORROW nodes when no more CAN_SEND nodes
-#   - Update states on each replenish
-#   - Change of state means a change in list membership
-
 
 class TokenBucketNode(object):
 
@@ -96,22 +83,6 @@ class TokenBucketNode(object):
 
 
 class ShaperTokenBucket(TokenBucketNode):
-    """ Models an ideal token bucket shaper. Note the token bucket size should
-    be greater than the size of the largest packet that can occur on input. If
-    this is not the case we always accumulate enough tokens to let the current
-    packet pass based on the average rate. This may not be the behavior you
-    desire.
-
-        Parameters
-        ----------
-        env : simpy.Environment
-            the simulation environment
-        rate : float
-            the min token arrival rate in bits
-        ceil : Number
-            the max token arrival rate in bits
-
-    """
 
     def __init__(self, env, name, rate, ceil, parent=None, debug=False):
         super().__init__(name, rate, ceil, parent)

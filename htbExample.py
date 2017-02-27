@@ -80,7 +80,7 @@ def render(profile, shapers):
     def format_label(name, ceil, rate):
         return "%s|{C:%d|R:%d}" % (name, ceil, rate)
 
-    g = Digraph(format='png')
+    g = Digraph(format='png', strict=True)
     g.body.extend(['rankdir=BT'])
     g.attr('node', shape='record', style='rounded')
 
@@ -143,5 +143,19 @@ if __name__ == '__main__':
                    ('S3_2', 150, 200, [])]),
                  ('S4', 150, 150, [])])
     simulate("Profile5", profile5)
+
+    profile6 = ('Root', 5000, 5000,
+                [('T1', 1000, 1000,
+                  [('S1', 200, 300, []),
+                   ('S2', 200, 300, []),
+                   ('S3', 200, 300, [])]),
+                 ('T2', 1000, 1000,
+                  [('S4', 300, 400, []),
+                   ('S5', 300, 400, []),
+                   ('S6', 300, 400, [])]),
+                 ('T3', 300, 400,
+                  [('S7', 150, 250, []),
+                   ('S8', 150, 200, [])])])
+    simulate("Profile6", profile6)
 
 

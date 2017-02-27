@@ -1,0 +1,14 @@
+strict digraph {
+rankdir=BT
+	node [shape=record style=rounded]
+	S1 [label="S1|{C:150|R:150}"]
+	Root [label="Root|{C:1000|R:1000}"]
+		Root -> S1 [label=150]
+	S2 [label="S2|{C:150|R:150}"]
+		Root -> S2 [label=150]
+	S3 [label="S3|{C:150|R:150}"]
+		Root -> S3 [label=150]
+	S4 [label="S4|{C:150|R:150}"]
+		Root -> S4 [label=150]
+{ rank=same S1 S2 S3 S4 }
+}
